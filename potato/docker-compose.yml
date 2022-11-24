@@ -1,0 +1,51 @@
+version: "3.9"
+
+networks:
+  db:
+  missions:
+
+services:
+  mysql:
+    container_name: db
+    image: mysql:8.0.31
+    env_file:
+      - ./mysql/vars.env
+    volumes:
+      - mysql-storage:/var/lib/mysql:rw
+    ports:
+      - "3306:3306"
+    networks:
+      db:
+        aliases:
+          - db
+  missions:
+    container_name: missions
+    depends_on:
+      - mysql
+    build:
+      context: ./potato_plant_missions
+      dockerfile: ../missions.Dockerfile
+    networks:
+      - db
+      - missions 
+    ports:
+      - "8000:80"
+  mission_replay:
+    container_name: mission_replay
+    depends_on:
+      - missions
+    build:
+      context: ./potato_plant_replay
+      dockerfile: ../replay.Dockerfile
+    networks:
+      - missions
+    ports:
+      - "3000:3000"
+    volumes:
+      - rust-crates-cache:/etc/rust-cache 
+volumes:
+  rust-crates-cache:
+    driver: local
+  mysql-storage:
+    driver: local
+
