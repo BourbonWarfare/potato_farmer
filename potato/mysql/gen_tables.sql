@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS history(
     player_count INT,
     players_present JSON,
     length INT,
-    date TIMESTAMP
+    date INT
 );
 
 CREATE TABLE IF NOT EXISTS replays(
