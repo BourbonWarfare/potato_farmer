@@ -5,6 +5,16 @@ networks:
   missions:
 
 services:
+  mysql-table-gen:
+    image: mysql:8.0.31
+    entrypoint: /bin/bash
+    command: ./var/lib/mysql/generate_tables.sh
+    volumes:
+      - ./mysql/generate_tables.sh:/var/lib/mysql/generate_tables.sh:ro
+      - ./mysql/gen_tables.sql:/var/lib/mysql/gen_tables.sql:ro
+    networks:
+      - db
+
   mysql:
     container_name: db
     image: mysql:8.0.31
@@ -18,6 +28,9 @@ services:
       db:
         aliases:
           - db
+    depends_on:
+      mysql-table-gen:
+        condition: service_started
   missions:
     container_name: missions
     depends_on:
