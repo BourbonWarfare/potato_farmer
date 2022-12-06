@@ -3,8 +3,28 @@ version: "3.9"
 networks:
   db:
   missions:
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.0.3.0/26
+          gateway: 10.0.3.1
+  dashboard:
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.0.3.64/26
+          gateway: 10.0.3.65
 
 services:
+  nginx:
+    image: nginx:1.23
+    networks:
+      - missions
+      - dashboard
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
   mysql-table-gen:
     image: mysql:8.0.31
     entrypoint: /bin/bash
@@ -14,7 +34,6 @@ services:
       - ./mysql/gen_tables.sql:/var/lib/mysql/gen_tables.sql:ro
     networks:
       - db
-
   mysql:
     container_name: db
     image: mysql:8.0.31
@@ -35,27 +54,37 @@ services:
     container_name: missions
     depends_on:
       - mysql
+      - nginx
     build:
       context: ./potato_plant_missions
       dockerfile: ../missions.Dockerfile
     networks:
       - db
       - missions 
-    ports:
-      - "8000:80"
   mission_replay:
     container_name: mission_replay
     depends_on:
       - missions
+      - nginx
     build:
       context: ./potato_plant_replay
       dockerfile: ../replay.Dockerfile
     networks:
       - missions
-    ports:
-      - "3000:3000"
     volumes:
-      - rust-crates-cache:/etc/rust-cache 
+      - rust-crates-cache:/etc/rust-cache:rw
+  dashboard:
+    container_name: dashboard
+    build:
+      context: ./potato_plant_dashboard
+      dockerfile: ../dashboard.Dockerfile
+    volumes:
+      - ./potato_plant_dashboard/dashboard/build:/var/www/:ro
+    networks:
+      - dashboard
+    depends_on:
+      - nginx
+
 volumes:
   rust-crates-cache:
     driver: local

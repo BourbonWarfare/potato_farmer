@@ -1,6 +1,6 @@
 FROM rust:latest as builder
 WORKDIR /usr/src/potato_plant_replay
-ENV CARGO_HOME=/etc/rust-cache
+
 COPY . .
 RUN cargo install --path .
 
