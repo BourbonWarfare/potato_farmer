@@ -121,7 +121,8 @@ def main():
                         specified, repository will be cloned within the directory this tool is run')
     parser.add_argument('--new',
                         required=False,
-                        default=False)
+                        default=False,
+                        help='Create the repository instead of cloning an existing repository')
     args = parser.parse_args()
 
     if args.mode == 'link':
