@@ -29,11 +29,17 @@ THIS_PATH = os.path.dirname(os.path.realpath(__file__))
 REPO_SYMLINK_PATH_UNFORMATTED = 'potato/{}'
 
 
-def has_requirements():
-    if shutil.which('git') is None:
-        return False
+def missing_requirements():
+    '''Returns a list of missing requirements; the empty list is returned
+    if all requirements are satisfied.'''
 
-    return True
+    reqs = ['git']
+
+    res = []
+    for req in reqs:
+        if shutil.which(req) is None:
+            res.append(req)
+    return res
 
 
 def is_path(potential_path):
@@ -46,7 +52,7 @@ def is_path(potential_path):
 def link_directories(repo_path):
     try:
         is_path(repo_path)
-    except:
+    except NotADirectoryError:
         print('"{}" is not a valid path to symlink!'.format(repo_path))
         return
 
@@ -67,9 +73,9 @@ def clone_repo(clone_path, repository):
         subprocess.run(['git', 'clone', BW_GITHUB_PATH.format(repository), repo_path],
                        check=False)
         link_directories(repo_path)
-    except:
-        print("Error cloning {} to {}!".format(
-            BW_GITHUB_PATH.format(repository), repo_path))
+    except Exception as e:
+        print("Error cloning {} to {}: {}!".format(
+            BW_GITHUB_PATH.format(repository), repo_path, e))
 
 
 def create_repo(clone_path, repository):
@@ -91,7 +97,10 @@ def add(args):
 
 
 def main():
-    if not has_requirements():
+    missing = missing_requirements()
+    if len(missing) > 0:
+        print("The following requirements are missing:", missing)
+        print("Exiting...")
         sys.exit(1)
 
     parser = argparse.ArgumentParser(
