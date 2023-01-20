@@ -11,16 +11,15 @@ The first is Docker Engine and Docker Compose. The following list links to the i
 instructions for each of these:
 
 * [Docker Engine installation instructions.](https://docs.docker.com/engine/install/)
-* [Docker Compose installation instructions.](https://docs.docker.com/compose/install/linux/)
-
-<!-- TODO: identify and add other dependencies; Python? Rust? -->
+* [Docker Compose installation instructions.](https://docs.docker.com/compose/install/)
+* [Python3 installation instructions.](https://www.python.org/downloads/)
 
 ### Sub-repository management
 
 The tool `setup.py` can be used to clone (or symlink) project repositories for deployment.
 
-For instance, the following command will clone the `plant_dashboard` and `plant_missions` repositories
-into the project root:
+For instance, the following command will clone the `potato_plant_dashboard` and `potato_plant_missions` 
+repositories (hosted in the BourbonWarfare organization) into the project root:
 ```bash
 python3 setup.py add plant_dashboard plant_missions
 ```
