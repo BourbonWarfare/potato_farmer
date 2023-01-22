@@ -68,7 +68,8 @@ operations or data tied to user identity).
 
 #### Password Authentication
 
-Upon user creation, users will select a password to use for authentication. We will impose several
+Upon user creation, users will select a password to use for authentication. If possible, we should 
+include a password strength meter to help users choose a strong password. We will impose several 
 requirements to ensure the password is not trivially bruteforceable.
 
 1. Minimum of 12 characters; maximum of 60 characters
@@ -76,21 +77,18 @@ requirements to ensure the password is not trivially bruteforceable.
 3. Includes at least one uppercase and lowercase alphabetic character
 4. Includes at least one non-alphabetic character (symbol)
 
-These passwords will be stored in a User Authentication service. They will be salted and hashed to
-protect against offline attacks if the password database were ever leaked.
-
-* The salt will be a cryptographically random string.
-* The chosen hash function will be computationally expensive to deter offline attacks.
-
-TODO: pick hash function. `bcrypt` seems preferred nowadays? it may also handle salting?
+These passwords will be stored in a User Authentication service. The modern algorithm Argon2id is
+considering the most secure and correct to use in modern applications, but is resource-heavy. All
+passwords should be salted, but Argon2id should handle this itself. Password hashes should be
+compared using only safe functions that have been vetted by security experts.
 
 #### Two Factor Authentication (2FA)
 
 As user passwords may be shared between multiple services, may be bruteforceable, may be leaked 
 through a variety of means, etc., our application will utilize 2FA to further validate user
-identities.
-
-TODO: mechanism? email?
+identities. This 2FA mechanism will be opt-in and will utilize email to send a user a six-digit 
+one-time code to be validated after username/password validation succeeds. Bypassing this mechanism
+requires malicious actors to also have access to the user's email.
 
 ### (1, 2) User Sessions
 
@@ -99,60 +97,58 @@ and is expensive for our backend services. To alleviate this pressure, we will i
 sessions to permit users to authenticate once and continue submitting requests for a time without
 requiring authentication again.
 
-User sessions will be implemented by a `SessionID` that is a 256 bit-string, the length chosen
+User sessions will be implemented by a `SessionID` that is a 128-bit string, the length chosen
 to harden `SessionID`s against bruteforce attacks. These will be randomly generated with
 cryptographically strong randomness. `SessionID`s will be stored in a Redis memory store alongside
-a `UserID` and a session timeout. Sessions will timeout after 12 hours of inactivity.
+a `UserID` and a session timeout. Sessions will have an idle timeout of 1 hour and an absolute 
+timeout of 1 day after authentication. We could consider introducing a renewal timeout as well,
+but this would add additional complexity.
 
-Users will receive their 256-bit `SessionID` after successful user authentication. This will have
+Users will receive their 128-bit `SessionID` after successful user authentication. This will have
 to be sent with every privileged request in a manner specified by the application API. The API
 Gateway would check the Redis memory store to validate the `SessionID` before serving the request.
 Failure to validate the `SessionID` would result in a failure which would be communicated to the user.
 
-TODO: details of `SessionID` storage (do we want to use Redis?), details of timeout
+Note that as `SessionID`s will be sent as a HTTP Cookie, it is important to properly protect against
+CSRF attacks with the proper use of CSRF tokens.
 
 ### (3) Internal Docker Network
 
 Backend services will operate within an internal Docker network that would not have exposed ports
-to the outside world. Only the API Gateway would be publicly accessible. This should prevent
+to the outside world. Only the API Gateway will be publicly accessible. This should prevent
 outside access of restricted backend services and force users to use the API Gateway to interact
 with applications.
 
-TODO: clarify details
+To clarify, the API Gateway will also be containerized and will access backend service APIs through
+the internal Docker network. Docker containers within the internal network will be assumed to be
+trustworthy and can talk at will.
 
 ### (4) Rate Limiting
 
 As the application continues to grow in scale, users will be rate limited and the API Gateway will
-not serve requests beyond the rate limit. If a user repeatedly violates the rate limiting rules,
-the user will be banned and the source IP will be blacklisted, and users will have to appeal to an
-administrator.
+not serve requests beyond the rate limit. Rate limiting should be stricter for non-authenticated
+endpoints. Users who repeatedly attempt to violate rate limiting rules should be restricted from
+accessing authenticated endpoints. Anonymous actors who repeatedly attempt to violate rate limiting
+rules may have their source IP banned (note that this may be problematic if many machines share a
+NAT).
 
-The rate limiting rules are as follows, per source IP (and logical user if a `SessionID` or login
-details are provided):
+We may consider implementing our own rate limiting mechanisms, or using off-the-shelf solutions.
+This mechanism will also likely depend on the implementation of our API Gateway.
 
-* Maximum of ten requests per second
-* First violation results in an immediate warning responses without fulfilling any requests for the
-  next minute
-* Second violation results in a one-minute timeout (one violation response to violating request and
-  then no responses for duration of timeout)
-* Third violation results in a one-hour timeout (one violation response to violating request and
-  then no responses for duration of timeout)
-* Fourth violation results in a ban
-    * Source IP is blacklisted and logical user is marked as banned (if possible)
-* A violation is disregarded after three days
-    * i.e., a third violation will be lowered to a second violation after three days
-
-The API Gateway will be responsible for recording the information required to enforce these rules,
-as well as implementing the enforcement mechanisms.
-
-TODO: look at how bigtech companies do this
-
-### (5) TLS/SSL
+### (5) TLS/SSL/DTLS
 
 All user-application communications and backend-service communications will utilize TLS/SSL for TCP
-connections, and some other encryption mechanism for relevant UDP datagrams, to ensure that private
-user/system/operational data is not leaked to external eavesdroppers. Thanks to Mechanism (3), it
-should not be possible for eavesdroppers to have access to private backend service communications,
-but these should still be encrypted as much as possible regardless to ensure a layered defense.
+connections to ensure that private user/system/operational data is not leaked to external eavesdroppers. 
+Thanks to Mechanism (3), it should not be possible for eavesdroppers to have access to private 
+backend service communications, but these should still be encrypted as much as possible regardless 
+to ensure a layered defense.
 
-TODO: UDP encryption? should more details, e.g. about certs, be included here?
+For UDP communications, we can consider a variety of integrity mechanisms. DTLS has been advertised
+as an integrity mechanism analogous to TLS for TCP, but the practical usage of this protocol may 
+need more investigation.
+
+## Appendix
+
+Consult the [Web Security Confluence Page](https://bourbonwarfare.atlassian.net/wiki/spaces/~62fd97fc88b05653fa7d6975/pages/557057/Web+Security)
+for a list of some of the sources consulted in the making of this document, as well as a list of
+resources on how to implement some of these security mechanisms correctly.
